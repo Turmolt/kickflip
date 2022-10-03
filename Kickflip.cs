@@ -64,6 +64,9 @@ namespace Kickflip
 
         IEnumerator PlayTween<T>(Tween<T> tween)
         {
+            if(tween.Delay > 0f) 
+                yield return new WaitForSeconds(tween.Delay);
+            
             while (!tween.IsComplete)
             {
                 tween.Tick(Time.deltaTime);
@@ -81,6 +84,7 @@ namespace Kickflip
         private AnimationCurve ease;
         private float duration;
         public Action OnComplete;
+        public float Delay;
 
         private Coroutine routine;
 
@@ -103,11 +107,18 @@ namespace Kickflip
 
         public void Tick(float deltaTime)
         {
-            if (IsComplete) return;
-            t += deltaTime / duration;
-            t = Mathf.Min(t, 1f);
-            setter.Invoke(lerp.Invoke(start, end, ease?.Evaluate(t) ?? t));
-            if (IsComplete) OnComplete?.Invoke();
+            try
+            {
+                if (IsComplete) return;
+                t += deltaTime / duration;
+                t = Mathf.Min(t, 1f);
+                setter.Invoke(lerp.Invoke(start, end, ease?.Evaluate(t) ?? t));
+                if (IsComplete) OnComplete?.Invoke();
+            }
+            catch (Exception e)
+            {
+                Kill();
+            }
         }
 
         public void Play()
@@ -123,6 +134,16 @@ namespace Kickflip
         {
             if (routine == null) return;
             Kickflip.Instance.StopCoroutine(routine);
+        }
+    }
+
+    public static class KickflipExtenstions
+    {
+        public static void TweenPosition(this Transform t, Vector3 end, float duration, Action onComplete = null)
+        {
+            var tween = new Tween<Vector3>(v => t.position = v, t.position, end, duration, Vector3.Lerp);
+            tween.OnComplete = onComplete;
+            tween.Play();
         }
     }
 }
